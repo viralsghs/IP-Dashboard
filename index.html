@@ -317,25 +317,32 @@ async function fetchSheet(sheetId,tab){
 const SKIP_WORDS=["budget sheet","count","revenue","mapping - new","subtotal"];
 function parseBudget(tbl){
   const rows=tbl.rows||[];
+  const cols=tbl.cols||[];
+  // Auto-detect revenue start col by finding 2nd occurrence of "Aug" in headers
+  let revStart=-1;
+  let augCount=0;
+  for(let i=0;i<cols.length;i++){
+    const lbl=String(cols[i]?.label||"").toLowerCase();
+    if(lbl.includes("aug")){augCount++;if(augCount===2){revStart=i;break;}}
+  }
+  if(revStart===-1) revStart=10; // fallback
   const out=[];
   for(const row of rows){
     const c=row.c||[];
     const v0=String(c[0]?.v||"").trim();
     if(!v0||v0==="null"||SKIP_WORDS.some(w=>v0.toLowerCase().includes(w))) continue;
-    // Skip if col 0 is a number (subtotal row)
     if(!isNaN(+v0)) continue;
-    const s=i=>{const v=c[i]?.v;return(v!=null&&!isNaN(+v))?+v:0;};
+    const s=i=>{const v=c[i]?.v;return(v!=null&&v!==""&&!isNaN(+v))?+v:0;};
     out.push({
       mapping:v0,
       focus:String(c[1]?.v||"").trim().replace(/^nan$/i,""),
       aug_cnt:s(2),budget_cnt:s(3),till_cnt:s(4),proj_cnt:s(5),diff_cnt:s(6),diffpct_cnt:s(7),
-      // gviz drops blank col[8] → revenue cols shift left by 1 vs Excel
-      aug_rev:s(8),budget_rev:s(9),till_rev:s(10),proj_rev:s(11),diff_rev:s(12),diffpct_rev:s(13),
+      aug_rev:s(revStart),budget_rev:s(revStart+1),till_rev:s(revStart+2),
+      proj_rev:s(revStart+3),diff_rev:s(revStart+4),diffpct_rev:s(revStart+5),
     });
   }
   return out;
 }
-
 // ── PARSE IP CONSOLE SHEET ──
 // Header is at row 5 in Excel (row index 4 = gviz row 4 after skipping blanks)
 // Valid data rows: col[0] (Sr.No.) must be a number
@@ -351,18 +358,26 @@ function parseIP(tbl){
     const doctor=String(c[9]?.v||"").trim();   // col J = Admitting Under
     const focus =String(c[21]?.v||"").trim().replace(/^nan$/i,""); // col V = Focus
     const mapping=String(c[20]?.v||"").trim(); // col U = Mapping-New AOP
-    const revenue=+(c[16]?.v)||0;              // col Q = Total Billing
-    const count  =+(c[30]?.v)||0;              // col AE = COUNT
+        const revenue  =+(String(c[16]?.v||"0").replace(/,/g,""))||0;  // col Q = Total Billing
+    const count    =+(String(c[30]?.v||"0").replace(/,/g,""))||0;  // col AE = COUNT
     // Date of Billing = col D [3]
     // Google gviz returns dates as JS Date-like objects or "Date(y,m,d)" strings
     const dateRaw=c[3]?.v;
-    if(dateRaw!=null){
+        if(dateRaw!=null){
       let day=0;
-      if(typeof dateRaw==="string"&&dateRaw.startsWith("Date(")){
-        const pts=dateRaw.replace("Date(","").replace(")","").split(",");
+      const ds=String(dateRaw);
+      if(ds.startsWith("Date(")){
+        // gviz format: Date(2026,8,20) — month is 0-based, day is index 2
+        const pts=ds.replace("Date(","").replace(")","").split(",");
         day=+pts[2]||0;
+      } else if(ds.match(/^\d{2}-\d{2}-\d{4}/)){
+        // Google Sheets shows as "20-09-2026 10:45" (DD-MM-YYYY)
+        day=+ds.substring(0,2)||0;
+      } else if(ds.match(/^\d{4}-\d{2}-\d{2}/)){
+        // ISO format: "2026-09-20"
+        day=+ds.substring(8,10)||0;
       } else {
-        try{ day=new Date(dateRaw).getDate(); }catch(e){}
+        try{ const d=new Date(ds); if(!isNaN(d)) day=d.getDate(); }catch(e){}
       }
       if(day>0&&day<=31) maxDay=Math.max(maxDay,day);
     }
