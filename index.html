@@ -314,7 +314,7 @@ async function fetchSheet(sheetId,tab){
 
 // ── PARSE BUDGET SHEET ──
 // Skip: Budget Sheet, Count, Revenue, Mapping headers, blank rows, subtotal row
-const SKIP_WORDS=["budget sheet","count","revenue","mapping","subtotal","total","dialysis","pulmonology"];
+const SKIP_WORDS=["budget sheet","count","revenue","mapping - new","subtotal"];
 function parseBudget(tbl){
   const rows=tbl.rows||[];
   const out=[];
@@ -330,7 +330,7 @@ function parseBudget(tbl){
       focus:String(c[1]?.v||"").trim().replace(/^nan$/i,""),
       aug_cnt:s(2),budget_cnt:s(3),till_cnt:s(4),proj_cnt:s(5),diff_cnt:s(6),diffpct_cnt:s(7),
       // gviz drops blank col[8] → revenue cols shift left by 1 vs Excel
-      aug_rev:s(10),budget_rev:s(11),till_rev:s(12),proj_rev:s(13),diff_rev:s(14),diffpct_rev:s(15),
+      aug_rev:s(8),budget_rev:s(9),till_rev:s(10),proj_rev:s(11),diff_rev:s(12),diffpct_rev:s(13),
     });
   }
   return out;
