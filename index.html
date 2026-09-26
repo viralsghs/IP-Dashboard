@@ -332,7 +332,7 @@ function parseBudget(tbl){
     const v0=String(c[0]?.v||"").trim();
     if(!v0||v0==="null"||SKIP_WORDS.some(w=>v0.toLowerCase().includes(w))) continue;
     if(!isNaN(+v0)) continue;
-    const s=i=>{const v=c[i]?.v;return(v!=null&&v!==""&&!isNaN(+v))?+v:0;};
+        const s=i=>{const v=String(c[i]?.v??'');const n=+(v.replace(/,/g,''));return isNaN(n)?0:n;};
     out.push({
       mapping:v0,
       focus:String(c[1]?.v||"").trim().replace(/^nan$/i,""),
@@ -358,8 +358,8 @@ function parseIP(tbl){
     const doctor=String(c[9]?.v||"").trim();   // col J = Admitting Under
     const focus =String(c[21]?.v||"").trim().replace(/^nan$/i,""); // col V = Focus
     const mapping=String(c[20]?.v||"").trim(); // col U = Mapping-New AOP
-        const revenue  =+(String(c[16]?.v||"0").replace(/,/g,""))||0;  // col Q = Total Billing
-    const count    =+(String(c[30]?.v||"0").replace(/,/g,""))||0;  // col AE = COUNT
+    const revenue=+(String(c[16]?.v??'').replace(/,/g,''))||0;
+    const count=+(String(c[30]?.v??'').replace(/,/g,''))||0;
     // Date of Billing = col D [3]
     // Google gviz returns dates as JS Date-like objects or "Date(y,m,d)" strings
     const dateRaw=c[3]?.v;
